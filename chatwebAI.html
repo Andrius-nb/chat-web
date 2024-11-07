@@ -1316,6 +1316,8 @@
             .chat-item {
                 width: 86vw;
             }
+            .subscription-plan {
+                display: none;
         }
     </style>
 </head>
@@ -1462,8 +1464,8 @@
                     </svg>
                 </button>
             </div>
-            <div id="userInfo" class="user-info">
-                <div>Subscription Plan: <span id="userPlan" class="user-plan"></span></div>
+            <div id="userInfo" class="user-info">    
+                <div class="subscription-plan" style="display: none;">Subscription Plan: <span id="userPlan" class="user-plan"></span></div>
                 <span id="userCredits" class="user-credits">
                     Remaining Daily Credits:
                     <span id="creditsAmount"></span> 

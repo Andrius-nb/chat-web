@@ -6,7 +6,7 @@
     <title>AI Playground</title>
     <link rel="icon" href="./images/electron.webp" type="image/webp">
     
-    <meta property="og:image" content="./images/electron.webp">
+    <meta property="og:image" content="./images/electron.img">
     <meta property="og:description" content="AI Playground is a simple web app that allows you to chat with various AI models.">
     <meta property="og:title" content="AI Playground">
     <meta property="og:url" content="https://playground.electronhub.top">
@@ -293,6 +293,7 @@
             z-index: 999;
             background-color: hsl(var(--muted));
             padding: 1rem;
+            padding-left: 1.75rem;
             display: flex;
             gap: 3rem;
             font-size: 0.8rem;
@@ -310,6 +311,7 @@
             padding: 0.5rem 1rem;
             transition: background-color 0.2s, color 0.2s, border-color 0.2s;
             cursor: pointer;
+            gap: 0.25rem;
         }
     
         .btn-primary {
@@ -1198,6 +1200,37 @@
             display: flex;
             position: relative;
         }
+
+        .prompt-title {
+            color: hsl(var(--muted-foreground)); 
+            margin-top: 12rem;
+            font-size: 1.2rem;
+        }
+
+        .prompt-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            flex-flow: wrap-reverse;
+            gap: 0.75rem;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .prompt-button {
+            background-color: var(--secondary);
+            color: hsl(var(--muted-foreground));
+            border: 1px solid hsl(var(--border));
+            border-radius: 9999px;
+            padding: 10px 15px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+    
+        .prompt-button:hover {
+            background-color: hsl(var(--secondary) / 0.9);
+        }
     
         #userInput {
             flex-grow: 1;
@@ -1411,7 +1444,6 @@
             .model-selector {
                 overflow: hidden;
                 text-overflow: ellipsis;
-                white-space: nowrap;
             }
 
             .model-selector-content {
@@ -1465,8 +1497,34 @@
             .chat-item {
                 width: 86vw;
             }
+
             .subscription-plan {
                 display: none;
+            }
+
+            .chat-welcome {
+                font-size: 0.8rem;
+                margin-top: 1.2rem;
+            }
+
+            .prompt-title {
+                font-size: 1rem;
+                margin-top: 4rem;
+                padding: 0 1rem;
+            }
+
+            .prompt-suggestions {
+                margin-bottom: 1vh;
+            }
+
+            .prompt-button {
+                font-size: 0.75rem;
+                padding: 8px 12px;
+            }
+
+            .chat-area {
+                padding: 0.5rem;
+            }
         }
     </style>
 </head>
@@ -1505,7 +1563,7 @@
                             <path d="M14.82 2.41c3.96 0 7.18 3.24 7.18 7.21 0 3.96-3.22 7.18-7.18 7.18-3.97 0-7.21-3.22-7.21-7.18 0-3.97 3.24-7.21 7.21-7.21zM2 21.6h3.5V2.41H2V21.6z"/>
                         </svg>
                     </a>
-                    <span class="version-text">v 1.0.5</span>
+                    <span class="version-text">v 1.0.6</span>
                 </div>
             </div>
         
@@ -1570,15 +1628,24 @@
                         <img src="./images/openai.svg" alt="OpenAI" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; position: relative;">
                     </div>
                     <h2>How can I help you?</h2>
-                    <button class="btn btn-secondary" onclick="openModal()">Set API Key</button>
-                    <p style="color: hsl(var(--muted-foreground)); margin-top: 1.5rem;">Ask me anything or start a new chat</p>
+                    <button class="btn btn-secondary" onclick="openModal()" style="border-radius: 9999px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plug"><path d="M12 22v-5"></path><path d="M9 8V2"></path><path d="M15 8V2"></path><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"></path></svg> Set API Key</button>
+                    <p class="prompt-title">Ask me anything or try these example prompts</p>
+                    <div id="promptSuggestions" class="prompt-suggestions"></div>
                 </div>
             </div>
             <div id="streamingMetrics" class="streaming-metrics">
-                <span id="timeToFirstToken" style="font-weight: 600;"></span>
-                <span id="avgTokensPerSec" style="font-weight: 600;"></span>
-                <span id="completionTokens" style="font-weight: 600;"></span>
-                <span id="totalTokens" style="font-weight: 600;"></span>
+                <span id="timeToFirstToken" style="font-weight: 600;">
+                    <span style="color: hsl(var(--primary)); font-weight: 800;">0.00</span> SEC TO FIRST TOKEN
+                </span>
+                <span id="avgTokensPerSec" style="font-weight: 600;">
+                    <span style="color: hsl(var(--primary)); font-weight: 800;">0.00</span> TOKENS/SEC
+                </span>
+                <span id="completionTokens" style="font-weight: 600;">
+                    <span style="color: hsl(var(--primary)); font-weight: 800;">0</span> TOKENS
+                </span>
+                <span id="totalTokens" style="font-weight: 600;">
+                    <span style="color: hsl(var(--primary)); font-weight: 800;">0</span> TOTAL TOKENS
+                </span>
                 <!-- <span id="totalTime" style="font-weight: 600;"></span> -->
             </div>
             <div class="input-area">
@@ -1971,6 +2038,223 @@
                 webSearchButton.style.backgroundColor = '';
                 webSearchButton.style.color = '';
             }
+        }
+
+        const allPrompts = [
+            {
+                summary: "Shakespeare's Influence",
+                full: "Analyze the enduring influence of Shakespeare's works on modern literature and popular culture. How have his themes and characters been adapted and reinterpreted over time?"
+            },
+            {
+                summary: "Quantum Computing",
+                full: "Explain the principles of quantum computing and its potential to revolutionize fields such as cryptography, drug discovery, and financial modeling. What are the current challenges in its development?"
+            },
+            {
+                summary: "Climate Change Solutions",
+                full: "Evaluate the most promising technological solutions to combat climate change, such as carbon capture, renewable energy, and geoengineering. What are their potential impacts and limitations?"
+            },
+            {
+                summary: "Ancient Philosophy",
+                full: "Compare and contrast the philosophical ideas of Plato and Aristotle. How have their theories influenced Western thought and modern governance?"
+            },
+            {
+                summary: "Artificial Intelligence Ethics",
+                full: "Discuss the ethical implications of advanced AI systems in decision-making roles. How can we ensure AI development benefits humanity while minimizing potential risks?"
+            },
+            {
+                summary: "Evolution of Language",
+                full: "Explore the factors that contribute to language evolution. How do new words, expressions, and grammatical structures become part of a language over time?"
+            },
+            {
+                summary: "Space Colonization",
+                full: "Analyze the potential benefits and challenges of establishing a permanent human settlement on Mars. What technological and psychological hurdles must be overcome?"
+            },
+            {
+                summary: "Economic Inequality",
+                full: "Examine the causes and consequences of growing economic inequality in developed nations. What policy measures could effectively address this issue?"
+            },
+            {
+                summary: "Biodiversity Conservation",
+                full: "Discuss the importance of biodiversity in maintaining ecosystem stability. What are the main threats to biodiversity in the 21st century, and how can they be mitigated?"
+            },
+            {
+                summary: "Renaissance Art Techniques",
+                full: "Analyze the use of perspective and chiaroscuro in Renaissance art. How did these techniques revolutionize painting during this period?"
+            },
+            {
+                summary: "Neuroscience of Consciousness",
+                full: "Explore the current understanding of consciousness in neuroscience. What are the main theories and their implications for our concept of self and free will?"
+            },
+            {
+                summary: "Sustainable Urban Planning",
+                full: "Describe the key features of a sustainable city. How can urban planning address environmental, social, and economic challenges in the 21st century?"
+            },
+            {
+                summary: "Classical Music Analysis",
+                full: "Analyze the structure and emotional impact of Beethoven's Symphony No. 9. How does it reflect the composer's personal struggles and the cultural context of its time?"
+            },
+            {
+                summary: "Soft Power in Geopolitics",
+                full: "Discuss the concept of soft power in international relations. How do countries use cultural influence, education, and diplomacy to achieve foreign policy goals?"
+            },
+            {
+                summary: "Evolutionary Adaptations",
+                full: "Explain the concept of convergent evolution. Provide examples of how similar traits have evolved in unrelated species and discuss the driving forces behind this phenomenon."
+            },
+            {
+                summary: "Architectural Movements",
+                full: "Compare and contrast the principles of modernist and postmodernist architecture. How do these styles reflect changing cultural values and technological advancements?"
+            },
+            {
+                summary: "Cybersecurity Challenges",
+                full: "Discuss the importance of cybersecurity in the digital age. What are the most significant threats to digital privacy and security, and how can individuals and organizations protect themselves?"
+            },
+            {
+                summary: "Philosophy of Mind",
+                full: "Explore the mind-body problem in philosophy. How do different theories attempt to explain the relationship between consciousness and the physical brain?"
+            },
+            {
+                summary: "Renewable Energy Transition",
+                full: "Analyze the challenges and opportunities in transitioning to a 100% renewable energy economy. What policy and technological innovations are needed to achieve this goal?"
+            },
+            {
+                summary: "Genetic Engineering Ethics",
+                full: "Discuss the ethical implications of human genetic engineering. How should society balance the potential benefits with the risks and moral concerns?"
+            },
+            {
+                summary: "Modern Monetary Theory",
+                full: "Explain the key principles of Modern Monetary Theory (MMT) and its potential implications for economic policy. What are the main criticisms of this approach?"
+            },
+            {
+                summary: "Quantum Entanglement",
+                full: "Describe the phenomenon of quantum entanglement and its potential applications in quantum computing and communication. How does it challenge our understanding of physics?"
+            },
+            {
+                summary: "Anthropocene Epoch",
+                full: "Discuss the concept of the Anthropocene epoch. What evidence supports the idea that human activity has become the dominant influence on climate and the environment?"
+            },
+            {
+                summary: "Behavioral Economics",
+                full: "Explore how behavioral economics challenges traditional economic models. How can insights from psychology improve economic policy and business practices?"
+            },
+            {
+                summary: "Artificial General Intelligence",
+                full: "Analyze the prospects and potential impacts of achieving Artificial General Intelligence (AGI). What are the main approaches to developing AGI, and what are the associated risks?"
+            },
+            {
+                summary: "Comparative Mythology",
+                full: "Compare and contrast creation myths from different cultures. What common themes emerge, and what do these similarities and differences reveal about human societies?"
+            },
+            {
+                summary: "Quantum Field Theory",
+                full: "Explain the basic principles of Quantum Field Theory and its role in modern physics. How does it unite quantum mechanics and special relativity?"
+            },
+            {
+                summary: "Bioethics in Medicine",
+                full: "Discuss the ethical considerations in emerging medical technologies such as gene editing and artificial organ development. How should society balance innovation with ethical concerns?"
+            },
+            {
+                summary: "Dark Matter and Energy",
+                full: "Describe the current understanding of dark matter and dark energy in cosmology. What evidence supports their existence, and what are the leading theories about their nature?"
+            },
+            {
+                summary: "Linguistic Relativity",
+                full: "Explore the Sapir-Whorf hypothesis and linguistic relativity. To what extent does the language we speak shape our perception and cognition?"
+            },
+            {
+                summary: "Blockchain Technology",
+                full: "Analyze the potential applications of blockchain technology beyond cryptocurrencies. How might it transform industries such as finance, supply chain management, and voting systems?"
+            },
+            {
+                summary: "Comparative Political Systems",
+                full: "Compare and contrast different systems of government (e.g., democracy, autocracy, theocracy). What are the strengths and weaknesses of each in addressing societal needs?"
+            },
+            {
+                summary: "Cognitive Enhancement",
+                full: "Discuss the ethical and social implications of cognitive enhancement technologies. How might they affect concepts of fairness, identity, and human nature?"
+            },
+            {
+                summary: "Exoplanet Exploration",
+                full: "Describe the methods used to detect and study exoplanets. What have we learned about planetary formation and the potential for extraterrestrial life?"
+            },
+            {
+                summary: "Information Theory",
+                full: "Explain the fundamental concepts of information theory and its applications in fields such as data compression, cryptography, and quantum computing."
+            },
+            {
+                summary: "Cultural Appropriation",
+                full: "Analyze the concept of cultural appropriation in a globalized world. How can societies balance cultural exchange and respect for traditional practices and identities?"
+            },
+            {
+                summary: "Nanotechnology Applications",
+                full: "Explore the current and potential future applications of nanotechnology in medicine, electronics, and materials science. What are the associated risks and ethical considerations?"
+            },
+            {
+                summary: "Game Theory in Society",
+                full: "Discuss how game theory can be applied to understand social, political, and economic interactions. Provide examples of how it has been used to analyze real-world situations."
+            },
+            {
+                summary: "Epigenetics",
+                full: "Explain the field of epigenetics and its implications for our understanding of genetics, heredity, and evolution. How might epigenetic research impact medicine and public health?"
+            },
+            {
+                summary: "Postcolonial Literature",
+                full: "Analyze the themes and techniques commonly found in postcolonial literature. How do these works address issues of identity, power, and cultural heritage?"
+            },
+            {
+                summary: "Fusion Energy",
+                full: "Discuss the potential of fusion energy as a future power source. What are the current technological challenges, and how might they be overcome?"
+            },
+            {
+                summary: "Moral Philosophy",
+                full: "Compare consequentialist and deontological approaches to ethics. How do these frameworks differ in their approach to moral decision-making?"
+            },
+            {
+                summary: "Cognitive Biases",
+                full: "Explore common cognitive biases and their impact on decision-making. How can awareness of these biases improve critical thinking and problem-solving?"
+            },
+            {
+                summary: "Synesthesia",
+                full: "Describe the neurological phenomenon of synesthesia. What does research on synesthesia reveal about sensory perception and brain function?"
+            },
+            {
+                summary: "Circular Economy",
+                full: "Explain the concept of a circular economy and its potential to address environmental challenges. What changes in production and consumption are needed to achieve this model?"
+            },
+            {
+                summary: "Comparative Religion",
+                full: "Compare and contrast the concepts of salvation or enlightenment in major world religions. What commonalities and differences emerge?"
+            },
+            {
+                summary: "Asteroid Mining",
+                full: "Analyze the potential benefits and challenges of asteroid mining. How might it impact the global economy and space exploration efforts?"
+            },
+            {
+                summary: "Memetics",
+                full: "Discuss the theory of memetics and its application to understanding cultural evolution. How do ideas spread and evolve in a manner analogous to genes?"
+            },
+            {
+                summary: "Quantum Cryptography",
+                full: "Explain the principles of quantum cryptography and its potential to create unbreakable encryption. What are the current limitations and future prospects of this technology?"
+            }
+        ];
+
+        function loadRandomPrompts() {
+            const promptSuggestions = document.getElementById('promptSuggestions');
+            promptSuggestions.innerHTML = '';
+
+            const shuffled = [...allPrompts].sort(() => 0.5 - Math.random());
+            const selectedPrompts = shuffled.slice(0, 3);
+
+            selectedPrompts.forEach(prompt => {
+                const button = document.createElement('button');
+                button.className = 'prompt-button';
+                button.textContent = prompt.summary;
+                button.addEventListener('click', () => {
+                document.getElementById('userInput').textContent = prompt.full;
+                });
+                promptSuggestions.appendChild(button);
+            });
         }
 
         // Modify the fetchUserInfo function
@@ -3241,11 +3525,13 @@
                 <div class="chat-welcome">
                     <div class="chat-icon">AI</div>
                     <h2>How can I help you?</h2>
-                    <button class="btn btn-secondary" onclick="openModal()">Set API Key</button>
-                    <p style="color: hsl(var(--muted-foreground)); margin-top: 1.5rem;">Ask me anything or start a new chat</p>
+                    <button class="btn btn-secondary" onclick="openModal()" style="border-radius: 9999px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plug"><path d="M12 22v-5"></path><path d="M9 8V2"></path><path d="M15 8V2"></path><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"></path></svg> Set API Key</button>
+                    <p class="prompt-title">Ask me anything or try these example prompts</p>
+                    <div id="promptSuggestions" class="prompt-suggestions"></div>
                 </div>
             `;
             updateChatIcon(selectedModel);
+            loadRandomPrompts();
             if (window.innerWidth < 768) {
                 closeSidebar();
             }
@@ -3387,7 +3673,7 @@
         async function uploadFile() {
             const input = document.createElement('input');
             input.type = 'file';
-            input.accept = '.pdf,.txt,.docx,.doc,.js,.ts,.py,.html';
+            input.accept = '.pdf,.txt,.docx,.doc,.js,.ts,.py,.html,.csv,.xlsx,.xls,.pptx,.json,.xml,.yaml,.yml,.md,.java,.c,.cs,.cpp,.rs,.go,.php,.rb,.sh,.sql';
             input.multiple = true;
             input.onchange = async (e) => {
                 const files = Array.from(e.target.files);
@@ -3416,27 +3702,49 @@
 
         async function parseFile(file) {
             const extension = file.name.split('.').pop().toLowerCase();
+            const buffer = await file.arrayBuffer();
             
             switch (extension) {
                 case 'pdf':
-                    return await parsePDF(file);
+                    return await parsePDF(buffer);
                 case 'docx':
-                    return await parseDocx(file);
+                    return await parseDocx(buffer);
                 case 'txt':
                 case 'js':
                 case 'ts':
                 case 'py':
                 case 'html':
+                case 'java':
+                case 'c':
+                case 'cs':
+                case 'cpp':
+                case 'rs':
+                case 'go':
+                case 'php':
+                case 'rb':
+                case 'sh':
+                case 'sql':
+                case 'json':
+                case 'xml':
+                case 'yaml':
+                case 'yml':
+                case 'md':
                     return await parseTextFile(file);
+                case 'csv':
+                    return await parseCSV(buffer);
+                case 'xlsx':
+                case 'xls':
+                    return await parseExcel(buffer);
+                case 'pptx':
+                    return await parsePPTX(buffer);
                 default:
                     throw new Error('Unsupported file type');
             }
         }
         
 
-        async function parsePDF(file) {
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+        async function parsePDF(buffer) {
+            const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
             let text = '';
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
@@ -3446,17 +3754,58 @@
             return text;
         }
         
-        async function parseDocx(file) {
-            const arrayBuffer = await file.arrayBuffer();
-            const result = await mammoth.extractRawText({arrayBuffer});
+        async function parseDocx(buffer) {
+            const result = await mammoth.extractRawText({buffer});
             return result.value;
         }
 
-        
         async function parseTextFile(file) {
             return await file.text();
         }
         
+        async function parseCSV(buffer) {
+            const text = new TextDecoder().decode(buffer);
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            if (lines.length === 0) {
+                return "Empty CSV file";
+            }
+            const headers = lines[0].split(',').map(header => header.trim());
+            const result = lines.slice(1).map(line => {
+                const values = line.split(',');
+                return headers.reduce((obj, header, index) => {
+                    obj[header] = values[index] ? values[index].trim() : '';
+                    return obj;
+                }, {});
+            });
+            return JSON.stringify(result, null, 2);
+        }
+
+        async function parseExcel(buffer) {
+            const workbook = XLSX.read(buffer, {type: 'array'});
+            const result = {};
+            workbook.SheetNames.forEach(sheetName => {
+                result[sheetName] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+            });
+            return JSON.stringify(result, null, 2);
+        }
+
+        async function parsePPTX(buffer) {
+            const zip = new JSZip();
+            await zip.loadAsync(buffer);
+            let text = '';
+
+            // Extract text from slides
+            const slideFiles = Object.keys(zip.files).filter(filename => filename.startsWith('ppt/slides/slide'));
+            for (const slideFile of slideFiles) {
+                const slideContent = await zip.file(slideFile).async('string');
+                const textMatches = slideContent.match(/<a:t>(.+?)<\/a:t>/g);
+                if (textMatches) {
+                    text += textMatches.map(match => match.replace(/<\/?a:t>/g, '')).join('\n') + '\n\n';
+                }
+            }
+
+            return text.trim();
+        }
 
         function updateFilePreview() {
             const previewArea = document.getElementById('filePreview');
@@ -3493,9 +3842,29 @@
                 case 'docx':
                 case 'doc': return '📃';
                 case 'js':
-                case 'ts': return '🟨';
+                case 'ts': return '📦';
                 case 'py': return '🐍';
                 case 'html': return '🌐';
+                case 'css': return '🎨';
+                case 'csv':
+                case 'xlsx':
+                case 'xls': return '📊';
+                case 'pptx': return '🖼';
+                case 'json':
+                case 'xml':
+                case 'yaml':
+                case 'yml':
+                case 'md': return '📄';
+                case 'java': return '☕';
+                case 'c': return '🅒';
+                case 'cs': return '©️';
+                case 'cpp': return '🅒';
+                case 'rs': return '🦀';
+                case 'go': return '🐹';
+                case 'php': return '🐘';
+                case 'rb': return '💎';
+                case 'sh': return '🔒';
+                case 'sql': return '💾';
                 default: return '📁';
             }
         }
@@ -3704,6 +4073,7 @@
             setupRevertActionButtons();
             fetchUserInfo();
             updateMessageCost();
+            loadRandomPrompts();
         }
     </script>
 </body>

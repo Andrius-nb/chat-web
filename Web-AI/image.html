@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Playground - Electron Hub</title>
-    <link rel="icon" href="./images/electron.webp" type="image/webp">
+    <link rel="icon" href="./images/electron.png" type="image/png">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         /* Root variables for light mode */
@@ -65,11 +65,19 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: IBM Plex Mono, Menlo, monospace;
             background-color: hsl(var(--background));
             color: hsl(var(--foreground));
             min-height: 100vh;
             transition: background-color 0.3s ease;
+        }
+
+        canvas {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            pointer-events: none;
+            z-index: 10000;
         }
         
         .background {
@@ -222,9 +230,11 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 1rem;
         }
 
         .btn {
+            width: fit-content;
             background-color: hsl(var(--primary));
             color: hsl(var(--primary-foreground));
             border: none;
@@ -351,7 +361,7 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            z-index: 1000;
+            z-index: 5000;
             opacity: 0;
             transform: translateY(1rem);
             transition: all 0.3s;
@@ -551,7 +561,6 @@
             opacity: 0.9;
         }
 
-    
         /* Enhanced card styling */
         .image-card {
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -597,7 +606,6 @@
             flex-wrap: wrap;
             width: -webkit-fill-available;
         }
-
 
         .navbar-icon {
             height: 1em;
@@ -701,12 +709,71 @@
             height: 18px;
         }
 
+        .elapsed-timer {
+            display: flex;
+            align-items: center;
+            margin-left: 1rem;
+            font-size: 1rem;
+            color: hsl(var(--primary-foreground));
+        }
+        
+        .hourglass {
+            width: 24px;
+            height: 24px;
+            margin-right: 0.5rem;
+            animation: spin 4s linear infinite;
+        }
+        
+        .hourglass-body {
+            stroke-dasharray: 40;
+            stroke-dashoffset: 0;
+            animation: dash 4s linear infinite;
+        }
+        
+        .hourglass-sand {
+            animation: flow 4s linear infinite;
+        }
 
+        .time-taken {
+            margin-left: 1rem;
+            font-size: 0.875rem;
+            color: hsl(var(--muted-foreground));
+            background-color: hsl(var(--muted));
+            padding: 0.25rem 0.5rem;
+            border: 1px solid hsl(var(--border));
+            border-radius: var(--radius);
+            width: fit-content;
+        }
+        
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes dash {
+            0% {
+                stroke-dashoffset: 0;
+            }
+            50% {
+                stroke-dashoffset: 40;
+            }
+            100% {
+                stroke-dashoffset: 80;
+            }
+        }
+        
+        @keyframes flow {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(16px);
+            }
+        }
+        
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
         
-
         @media (max-width: 768px) {
             .navbar {
                 position: sticky;
@@ -777,6 +844,19 @@
                 margin-left: 0;
             }
 
+            .prompt-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        
+            .elapsed-timer {
+                margin-left: 0;
+                justify-content: center;
+            }
+
+            .time-taken {
+                margin-left: 0;
+            }
         }
     </style>
 </head>
@@ -871,21 +951,33 @@
                 <div id="generateTab" class="tab-content">
                     <div class="prompt-container">
                         <textarea id="promptInput" class="prompt-input" placeholder="What do you want to draw?"></textarea>
+                        <div id="qualityContainer" style="display: none;">
+                            <select id="qualitySelect" class="size-select">
+                                <option value="standard">Standard Quality</option>
+                                <option value="hd">HD Quality</option>
+                            </select>
+                        </div>
                         <div class="prompt-actions">
-                            <div id="qualityContainer" style="display: none;">
-                                <select id="qualitySelect" class="size-select">
-                                    <option value="standard">Standard Quality</option>
-                                    <option value="hd">HD Quality</option>
-                                </select>
-                            </div>
                             <button id="generateBtn" class="btn" onclick="generateImages()">
                                 <span>Generate</span>
                                 <div class="loading">
-                                    <div class="loading-spinner"></div>
-                                    <span>Generating...</span>
+                                    <!-- <div class="loading-spinner"></div> -->
+                                    <div class="elapsed-timer">
+                                        <svg class="hourglass" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path class="hourglass-body" d="M12 2v20M6 4v2c0 3.3 2.7 6 6 6s6-2.7 6-6V4M6 20v-2c0-3.3 2.7-6 6-6s6 2.7 6 6v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <path class="hourglass-sand" d="M6 4h12M6 20h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                        <span id="timerDisplay">00:00</span>
+                                        <span style="margin-left: 1rem;" id="randomStatus"></span>
+                                    </div>
+
                                 </div>
                             </button>
+                            <div id="timeTaken" class="time-taken" style="display: none;">
+                                Time Elapsed: <span id="timeTakenValue"></span>
+                            </div>     
                         </div>
+                                         
                     </div>
             
                     <div id="imageGrid" class="image-grid">
@@ -1026,8 +1118,53 @@
         let apiKey = localStorage.getItem('apiKey') || '';
         let models = [];
         let isLoading = false;
+        let timerInterval;
+        let startTime;
+        let endTime;
+        let magicWords = ["Generating magic...", "Creating art...", "Drawing inspiration...", "Painting pixels...", "Crafting creativity...", "Designing dreams...", "Imagining images...", "Sketching sketches...", "Illustrating ideas...", "Visualizing visions...", "Crafting creations...", "Drawing doodles...", "Painting pictures...", "Creating concepts...", "Designing drafts...", "Sketching scribbles...", "Illustrating illustrations...", "Visualizing visuals...", "Crafting characters...", "Drawing diagrams...", "Painting portraits...", "Creating comics...", "Designing drafts...", "Sketching storyboards...", "Illustrating infographics...", "Visualizing vectors...", "Crafting cartoons...", "Drawing diagrams...", "Painting patterns...", "Creating collages...", "Designing drafts...", "Sketching storyboards...", "Illustrating infographics...", "Visualizing vectors...", "Crafting cartoons...", "Drawing diagrams...", "Painting patterns...", "Creating collages...", "Designing drafts...", "Sketching storyboards...", "Illustrating infographics...", "Visualizing vectors...", "Crafting cartoons...", "Drawing diagrams...", "Painting patterns...", "Creating collages...", "Designing drafts...", "Sketching storyboards...", "Illustrating infographics...", "Visualizing vectors...", "Crafting cartoons...", "Drawing diagrams...", "Painting patterns...", "Creating collages...", "Designing drafts...", "Sketching storyboards...", "Illustrating infographics...", "Visualizing vectors...", "Crafting cartoons...", "Drawing diagrams...", "Painting patterns...", "Creating collages...", "Designing drafts...", "Sketching storyboards...", "Illustrating infographics...", "Visualizing vectors...", "Crafting cartoons...", "Drawing diagrams...", "Painting patterns...", "Creating collages...", "Designing drafts...", "Sketching storyboards...", "Illustrating infographics...", "Visualizing vectors...", "Crafting cartoons...", "Drawing diagrams...", "Painting patterns...", "Creating collages...", "Designing drafts...", "Sketching storyboards...", "Illustrating infographics...", "Visualizing vectors...", "Crafting cartoons...", "Drawing diagrams...", "Painting patterns...", "Creating collages...", "Designing drafts...", "Sketching storyboards...", "Illustrating infographics...", "Visualizing vectors...", "Crafting cartoons...", "Drawing diagrams...", "Painting patterns...", "Creating collages...", "Designing drafts...", "Sketching storyboards...", "Illustrating infographics...", "Visualizing vectors..."];
 
-     
+        function startTimer() {
+            startTime = Date.now();
+            document.getElementById('timerDisplay').textContent = '00:00';
+            document.getElementById('randomStatus').textContent = magicWords[Math.floor(Math.random() * magicWords.length)];
+            timerInterval = setInterval(updateTimer, 1000);
+            document.querySelector('.elapsed-timer').style.display = 'flex';
+            document.getElementById('timeTaken').style.display = 'none';
+        }
+
+        function displayTimeTaken() {
+            endTime = Date.now();
+            const timeTaken = (endTime - startTime) / 1000; // Convert to seconds
+            const minutes = Math.floor(timeTaken / 60);
+            const seconds = Math.floor(timeTaken % 60);
+            const timeTakenString = `${minutes}m ${seconds}s`;
+            document.getElementById('timeTakenValue').textContent = timeTakenString;
+            document.getElementById('timeTaken').style.display = 'block';
+        }
+        
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+        
+        function updateTimer() {
+            const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsedTime / 60).toString().padStart(2, '0');
+            const seconds = (elapsedTime % 60).toString().padStart(2, '0');
+            document.getElementById('timerDisplay').textContent = `${minutes}:${seconds}`;
+            // Update random status every 3 seconds
+            if (elapsedTime % 3 === 0) {
+                document.getElementById('randomStatus').textContent = magicWords[Math.floor(Math.random() * magicWords.length)];
+            }
+
+        }
+        
+        function resetTimer() {
+            stopTimer();
+            document.getElementById('timerDisplay').textContent = '00:00';
+            document.querySelector('.elapsed-timer').style.display = 'none';
+            document.getElementById('timeTaken').style.display = 'none';
+        }
+
 
         modelSearchTrigger.addEventListener('click', () => {
             modelDropdownContent.classList.toggle('show');
@@ -1257,41 +1394,49 @@
             const defaults = {
                 origin: { y: 0.7 }
             };
-
+        
             function fire(particleRatio, opts) {
-                confetti({
-                    ...defaults,
-                    ...opts,
-                    particleCount: Math.floor(count * particleRatio)
-                });
+                confetti(Object.assign({}, defaults, opts, {
+                    particleCount: Math.floor(count * particleRatio),
+                    zIndex: 10000 // Ensure confetti appears on top
+                }));
             }
-
+        
             fire(0.25, {
                 spread: 26,
                 startVelocity: 55,
             });
-
+        
             fire(0.2, {
                 spread: 60,
             });
-
+        
             fire(0.35, {
                 spread: 100,
                 decay: 0.91,
                 scalar: 0.8
             });
-
+        
             fire(0.1, {
                 spread: 120,
                 startVelocity: 25,
                 decay: 0.92,
                 scalar: 1.2
             });
-
+        
             fire(0.1, {
                 spread: 120,
                 startVelocity: 45,
             });
+        
+            // Add mobile-specific confetti
+            if (window.innerWidth <= 768) {
+                fire(0.5, {
+                    spread: 80,
+                    origin: { y: 0.9 },
+                    startVelocity: 35,
+                });
+            }
         }
 
         async function updateImageGrid(images) {
@@ -1328,6 +1473,8 @@
             generateBtn.disabled = true;
             generateBtn.querySelector('.loading').style.display = 'flex';
             generateBtn.querySelector('span').style.display = 'none';
+
+            startTimer();
         
             try {
                 const selectedModel = models.find(m => m.id === selectedModelSpan.textContent);
@@ -1376,7 +1523,12 @@
         
                     // Update display
                     await updateImageGrid(data.data);
-                    triggerConfetti();
+
+                    displayTimeTaken();
+                    
+                    setTimeout(() => {
+                        triggerConfetti();
+                    }, 100);
                 }
             } catch (error) {
                 console.error('Error generating images:', error);
@@ -1386,6 +1538,9 @@
                 generateBtn.disabled = false;
                 generateBtn.querySelector('.loading').style.display = 'none';
                 generateBtn.querySelector('span').style.display = 'inline';
+
+                stopTimer();
+                displayTimeTaken();
             }
         }
 
@@ -1521,6 +1676,7 @@
             await loadApiKey();
             await fetchModels();
             initSegmentedControl();
+            resetTimer(); // Add this line
         }
 
         initializeApp();

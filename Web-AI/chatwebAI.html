@@ -1833,7 +1833,7 @@
         let BASE_URL = 'https://api.electronhub.top/v1';
         let currentChatId = null;
         let availableModels = [];
-        let selectedModel = 'gpt-3.5-turbo';
+        let selectedModel = 'claude-3-5-sonnet-20240620';
         let imagesUploaded = [];
         let filesUploaded = [];
         let webSearchEnabled = false;
@@ -1997,7 +1997,7 @@
                 id: chat.id || `Chat ${Date.now()}`,
                 name: chat.name || `Chat ${Date.now()}`,
                 messages: chat.messages || [],
-                model: chat.model || 'gpt-3.5-turbo'
+                model: chat.model || 'claude-3-5-sonnet-20240620'
               };
           
               await putInStore(CHAT_STORE, newChat);
@@ -2366,7 +2366,7 @@
         }
 
         function getDefaultModelIcon() {
-            return '<img src="./images/openai.svg" alt="OpenAI" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; position: relative;">';
+            return '<img src="./images/anthropic.svg" alt="Anthropic" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; position: relative;">';
         }
 
         function getModelIcon(model) {
@@ -4067,7 +4067,7 @@
             const defaultModelIcon = getDefaultModelIcon();
             document.getElementById("modelSelectorBtn").innerHTML = `
                 <span class="model-icon">${defaultModelIcon}</span>
-                <span id="selectedModel">gpt-3.5-turbo</span>
+                <span id="selectedModel">claude-3-5-sonnet-20240620</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-down"><polyline points="6 9 12 15 18 9"></polyline></svg>
             `;
             setupRevertActionButtons();

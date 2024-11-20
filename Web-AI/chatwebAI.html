@@ -36,6 +36,8 @@
     <!-- File Parser -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.8/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
 
     <style>
         :root {
@@ -135,7 +137,7 @@
         body, html {
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: IBM Plex Mono, Menlo, monospace;
             height: 100%;
             background-color: hsl(var(--background));
             color: hsl(var(--foreground));
@@ -816,7 +818,8 @@
             border: none;
             border-radius: var(--radius);
             padding: 0.25rem 0.5rem;
-            font-size: 0.8rem;
+            font-size: 1rem;
+            font-weight: bold;
             cursor: pointer;
         }
     
@@ -1079,7 +1082,6 @@
             display: flex;
             flex-wrap: wrap;
             gap: 5px;
-           
             height: 60px;
         }
     
@@ -1119,6 +1121,77 @@
             color: hsl(var(--destructive-foreground));
         }
 
+        .image-preview-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .image-preview-content {
+            max-width: 90%;
+            max-height: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .image-preview-content img {
+            max-width: 100%;
+            max-height: calc(90vh - 50px); /* Adjust for save button */
+            object-fit: contain;
+        }
+
+        .close-preview {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .close-preview:hover,
+        .close-preview:focus {
+            color: #bbb;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .save-image-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 16px;
+            margin-top: 15px;
+          
+            background-color: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+
+        .save-image-btn:hover {
+            background-color: hsl(var(--muted-foreground));
+        }
+        
+        .download-icon {
+            width: 16px;
+            height: 16px;
+        }
+        
         .file-preview {
             display: flex;
             flex-wrap: wrap;
@@ -1210,7 +1283,7 @@
         .prompt-suggestions {
             display: flex;
             flex-wrap: wrap;
-            flex-flow: wrap-reverse;
+            flex-flow: wrap;
             gap: 0.75rem;
             justify-content: center;
             align-items: center;
@@ -1272,6 +1345,70 @@
     
         .send-btn:hover {
             background-color: hsl(var(--primary) / 0.9);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+
+        .stop-btn {
+            display: none;
+            background-color: hsl(var(--primary));
+            color: hsl(var(--foreground));
+            border: 1px solid hsl(var(--border));
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 500;
+            position: absolute;
+            right: 0.5rem;
+            bottom: 0.5rem;
+            padding: 0.5rem 1rem;
+            width: 50px;
+            height: 34px;
+        }
+
+        .stop-btn:hover {
+            background-color: hsl(var(--primary) / 0.9);
+        }
+
+        .stop-btn::before,
+        .stop-btn::after {
+            content: "";
+            position: absolute;
+            left: 1.1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            border-radius: 50%;
+        }
+
+        .stop-btn::before {
+            width: 0.75rem;
+            height: 0.75rem;
+            background-color: hsl(var(--card));
+            animation: pulse 1s infinite;
+        }
+
+        .stop-btn::after {
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid hsl(var(--border));
+            opacity: 0.5;
+            left: 0.75rem;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 1;
+            }
         }
 
         .clear-context-message {
@@ -1508,7 +1645,7 @@
             }
 
             .prompt-title {
-                font-size: 1rem;
+                font-size: 0.7rem;
                 margin-top: 4rem;
                 padding: 0 1rem;
             }
@@ -1524,6 +1661,15 @@
 
             .chat-area {
                 padding: 0.5rem;
+            }
+
+            .user-message .message-content,
+            .assistant-message .message-content,
+            .assistant-info,
+            .user-message .message-header strong,
+            .user-info,
+            #userInput {
+                font-size: 0.8rem;
             }
         }
     </style>
@@ -1563,7 +1709,7 @@
                             <path d="M14.82 2.41c3.96 0 7.18 3.24 7.18 7.21 0 3.96-3.22 7.18-7.18 7.18-3.97 0-7.21-3.22-7.21-7.18 0-3.97 3.24-7.21 7.21-7.21zM2 21.6h3.5V2.41H2V21.6z"/>
                         </svg>
                     </a>
-                    <span class="version-text">v 1.0.6</span>
+                    <span class="version-text">v 1.0.7</span>
                 </div>
             </div>
         
@@ -1641,7 +1787,7 @@
                     <span style="color: hsl(var(--primary)); font-weight: 800;">0.00</span> TOKENS/SEC
                 </span>
                 <span id="completionTokens" style="font-weight: 600;">
-                    <span style="color: hsl(var(--primary)); font-weight: 800;">0</span> TOKENS
+                    <span style="color: hsl(var(--primary)); font-weight: 800;">0</span> COMPLETION TOKENS
                 </span>
                 <span id="totalTokens" style="font-weight: 600;">
                     <span style="color: hsl(var(--primary)); font-weight: 800;">0</span> TOTAL TOKENS
@@ -1684,18 +1830,33 @@
                 </div>
                 <div class="input-container">
                     <div id="userInput" class="input" contenteditable="true" data-placeholder="Ask anything ..."></div>
-                    <button class="send-btn" onclick="sendMessage()">
+                    <button class="send-btn" onclick="sendMessage()" id="sendButton">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
                             <line x1="22" y1="2" x2="11" y2="13"></line>
                             <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                         </svg>
                     </button>
+                    <button class="stop-btn" onclick="stopStreaming()" id="stopButton"></button>
                 </div>
                 <div class="preview-container">
                     <div id="imagePreview" class="image-preview"></div>
                     <div id="filePreview" class="file-preview"></div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="imagePreviewModal" class="image-preview-modal">
+        <span class="close-preview">&times;</span>
+        <div class="image-preview-content">
+            <img id="previewImage" src="" alt="Preview">
+            <button id="saveImageBtn" class="save-image-btn">
+                <svg class="download-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 11v3H2v-3H0v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3h-2z" fill="currentColor"/>
+                    <path d="M7.293 11.707a1 1 0 001.414 0l4-4a1 1 0 00-1.414-1.414L9 8.586V1a1 1 0 10-2 0v7.586L4.707 6.293a1 1 0 00-1.414 1.414l4 4z" fill="currentColor"/>
+                </svg>
+                Save Image
+            </button>
         </div>
     </div>
 
@@ -1842,6 +2003,9 @@
         let userPlan = '';
         let messageCost = 0;
         var countdownInterval;
+        let currentController = null;
+        const sendButton = document.getElementById('sendButton');
+        const stopButton = document.getElementById('stopButton');
 
         let db;
         const DB_NAME = 'ChatAppDB';
@@ -1961,10 +2125,11 @@
                     ...currentChat.messages
                 ];
                 const title = await generateChatTitle(apiMessages);
-                
-                // Update the chat name
-                currentChat.name = title;
-                await putInStore(CHAT_STORE, currentChat);
+                if (title) {
+                    // Update the chat name
+                    currentChat.name = title;
+                    await putInStore(CHAT_STORE, currentChat);
+                }
             }
         
            // updateChatHistorySidebar();
@@ -2305,7 +2470,7 @@
                 case 'pro': dailyCreditLimit = 5000000; break;
                 case 'business': dailyCreditLimit = 20000000; break;
                 case 'enterprise': dailyCreditLimit = 69000000; break;
-                case 'partner': dailyCreditLimit = 10000; break;
+                case 'partner': dailyCreditLimit = 10000000; break;
                 case 'admin': dailyCreditLimit = 99999999; break;
                 default: dailyCreditLimit = 100000;
             }
@@ -2431,6 +2596,14 @@
                 return '<img src="./images/bytedance.webp" alt="ByteDance" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; position: relative;">';
             } else if (ownedBy.includes('ai21')) {
                 return '<img src="./images/ai21.png" alt="AI21" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; position: relative;">';
+            } else if (ownedBy.includes('darksideofthemoon')) {
+                return '<img src="./images/darksideofthemoon.webp" alt="DarkSideOfTheMoon" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; position: relative;">';
+            } else if (ownedBy.includes('upstage')) {
+                return '<img src="./images/upstage.png" alt="Upstage" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; position: relative;">';
+            } else if (ownedBy.includes('flagalpha')) {
+                return '<img src="./images/flagalpha.png" alt="FlagAlpha" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; position: relative;">';
+            } else if (ownedBy.includes('pawan')) {
+                return '<img src="./images/pawan.webp" alt="Pawan" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; position: relative;">';
             } else {
                 return '<img src="./images/electron.webp" alt="Unknown" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; position: relative;">';
             }
@@ -2609,7 +2782,15 @@
             }
         }
 
-
+        function stopStreaming() {
+            if (currentController) {
+                currentController.abort();
+                const sendButton = document.getElementById('sendButton');
+                const stopButton = document.getElementById('stopButton');
+                sendButton.style.display = 'inline-flex';
+                stopButton.style.display = 'none';
+            }
+        }
 
         function renderMarkdown(content) {
             const rendered = marked.parse(content);
@@ -2671,6 +2852,14 @@
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`
             };
+
+            sendButton.style.display = 'none';
+            stopButton.style.display = 'inline-flex';
+
+            // Create a new AbortController
+            currentController = new AbortController();
+            const signal = currentController.signal;
+
             for (let i = 0; i < messages.length; i++) {
                 if (typeof messages[i].content === 'string') {
                     messages[i].content = JSON.parse(messages[i].content);
@@ -2682,6 +2871,8 @@
                                       .pop();
         
             let messagesToSend;
+            let fullResponse = '';
+
             if (lastClearContextIndex !== undefined) {
                 messagesToSend = messages.slice(lastClearContextIndex + 1);
             } else {
@@ -2746,7 +2937,8 @@
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: headers,
-                    body: body
+                    body: body,
+                    signal: signal
                 });
         
                 if (!response.ok) {
@@ -2793,7 +2985,6 @@
                 createAssistantMessageContainer();
                 document.getElementById('chatArea').scrollTo(0, document.getElementById('chatArea').scrollHeight);
         
-                let fullResponse = '';
                 const startTime = Date.now();
                 let firstTokenTime = null;
                 let approximateTokenCount = 0;
@@ -2825,6 +3016,11 @@
                                 const finalTokenCount = usageInfo ? usageInfo.completion_tokens : approximateTokenCount;
                                 const totalTokensForConversation = usageInfo ? usageInfo.total_tokens : null;
                                 updateStreamingMetrics(firstTokenTime, finalTokenCount, totalTime, totalTokensForConversation);
+
+                                // Re-enable send button and hide stop button
+                                sendButton.disabled = false;
+                                stopButton.style.display = 'none';
+                                currentController = null;
         
                                 return;
                             }
@@ -2860,13 +3056,36 @@
                 }
                     
             } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('chatArea').innerHTML += `
-                    <div style="margin-bottom: 1rem;">
-                        <strong>Error:</strong> 
-                        <p style="background-color: hsl(var(--destructive)); color: hsl(var(--destructive-foreground)); padding: 0.5rem; border-radius: var(--radius);">${error.message}</p>
-                    </div>
-                `;
+                if (error.name === 'AbortError') {
+                    console.log('Request was aborted');
+                    if (document.querySelector('.blinking-cursor')) {
+                        document.querySelector('.blinking-cursor').remove();
+                    }
+                    await saveChatToIndexedDB('assistant', JSON.stringify([{ 'type': 'text', 'text': fullResponse}]));
+                } else {
+                    console.error('Error:', error);
+                    let error_msg = 'An error occurred while processing your request.';
+                    try {
+                        const errorJson = error.message.split('<br>')[1];
+                        const errorData = JSON.parse(errorJson);
+                        console.error('Error data:', errorData);
+                        error_msg = errorData.detail.error.message;
+                    } catch (e) {
+                        console.error('Error parsing JSON:', e);
+                    }
+
+                    document.getElementById('chatArea').innerHTML += `
+                        <div style="margin-bottom: 1rem; width: fit-content;">
+                            <strong>Error:</strong> 
+                            <p style="background-color: hsl(var(--destructive)); color: hsl(var(--destructive-foreground)); padding: 0.5rem; border-radius: var(--radius);">${error_msg}</p>
+                        </div>
+                    `;
+                }
+            } finally {
+                // Re-enable send button and hide stop button
+                sendButton.style.display = 'inline-flex';
+                stopButton.style.display = 'none';
+                currentController = null;
             }
         }
         
@@ -3075,7 +3294,7 @@
             copyButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     const codeBlock = button.previousElementSibling;
-                    const code = codeBlock.textContent.trim();
+                    const code = codeBlock.querySelector('code').innerText;
                     navigator.clipboard.writeText(code).then(() => {
                         button.textContent = 'Copied!';
                         setTimeout(() => {
@@ -3086,9 +3305,19 @@
             });
         }
 
-        function copyMessage(button) {
-            const messageContent = button.closest('.message-container').querySelector('.message-content');
-            const textToCopy = messageContent.innerText;
+        async function copyMessage(button) {
+            // save current chat history to IndexedDB
+            const chat = await getFromStore(CHAT_STORE, currentChatId);
+            const messageIndex = Array.from(document.getElementById('chatArea').children).indexOf(button.closest('.message-container'));
+
+            let textToCopy = '';
+            try {
+                const message = chat.messages[messageIndex].content;
+                textToCopy = message.map(item => item.text).join('\n');
+            } catch (error) {
+                console.error('Error copying message:', error);
+                textToCopy = button.closest('.message-container').querySelector('.message-content').innerText;
+            }
             navigator.clipboard.writeText(textToCopy).then(() => {
                 alert('Message copied to clipboard!');
             });
@@ -3186,49 +3415,153 @@
             const chatArea = document.getElementById('chatArea');
             const messageIndex = Array.from(chatArea.children).indexOf(messageContainer);
             
-            if (messageContainer.classList.contains('user-message')) {
-                // Case 1: Retry user message
-                if (messageIndex < chatArea.children.length - 1) {
-                    chatArea.removeChild(chatArea.children[messageIndex + 1]); // Remove assistant's response
-                }
-                const userMessage = messageContainer.querySelector('.message-content').innerText;
-                chatArea.removeChild(messageContainer); // Remove user's message
-                
-                // Remove messages from chatHistory in IndexedDB
-                if (currentChatId) {
-                    const currentChat = await getFromStore(CHAT_STORE, currentChatId);
-                    if (currentChat) {
-                        currentChat.messages.splice(messageIndex, 2);
+            if (currentChatId) {
+                const currentChat = await getFromStore(CHAT_STORE, currentChatId);
+                if (currentChat) {
+                    let userMessageContent;
+                    let assistantMessageContent;
+                    if (messageContainer.classList.contains('user-message')) {
+                        userMessageContent = currentChat.messages[messageIndex].content;
+                        assistantMessageContent = currentChat.messages[messageIndex + 1]?.content;
+                        currentChat.messages.splice(messageIndex, 2); // Remove user and assistant message
+                    } else if (messageContainer.classList.contains('assistant-message')) {
+                        userMessageContent = currentChat.messages[messageIndex - 1].content;
+                        assistantMessageContent = currentChat.messages[messageIndex].content;
+                        currentChat.messages.splice(messageIndex - 1, 2); // Remove user and assistant message
+                    }
+        
+                    if (userMessageContent) {
+                        const textContent = userMessageContent.find(item => item.type === 'text')?.text || '';
+                        document.getElementById('userInput').innerText = textContent;
+        
+                        filesUploaded = userMessageContent
+                            .filter(item => item.type === 'file')
+                            .map(item => ({ name: item.name, content: item.content }));
+        
+                        imagesUploaded = userMessageContent
+                            .filter(item => item.type === 'image_url')
+                            .map(item => item.image_url.url);
+        
+                        updateFilePreview();
+                        updateImagePreview();
+        
+                        // Update chat history in IndexedDB
                         await putInStore(CHAT_STORE, currentChat);
-                    }
-                }
-                
-                // Re-send the user's message
-                document.getElementById('userInput').innerText = userMessage;
-                sendMessage();
-            } else if (messageContainer.classList.contains('assistant-message')) {
-                // Case 2: Retry assistant message
-                if (messageIndex > 0) {
-                    const userMessageContainer = chatArea.children[messageIndex - 1];
-                    const userMessage = userMessageContainer.querySelector('.message-content').innerText;
-                    
-                    chatArea.removeChild(userMessageContainer); // Remove user's message
-                    chatArea.removeChild(messageContainer); // Remove assistant's message
-                    
-                    // Remove messages from chatHistory in IndexedDB
-                    if (currentChatId) {
-                        const currentChat = await getFromStore(CHAT_STORE, currentChatId);
-                        if (currentChat) {
-                            currentChat.messages.splice(messageIndex - 1, 2);
-                            await putInStore(CHAT_STORE, currentChat);
+        
+                        // Remove messages from the chat area
+                        if (messageContainer.classList.contains('user-message')) {
+                            if (messageIndex < chatArea.children.length - 1) {
+                                chatArea.removeChild(chatArea.children[messageIndex + 1]); // Remove assistant's response
+                            }
+                            chatArea.removeChild(messageContainer); // Remove user's message
+                        } else if (messageContainer.classList.contains('assistant-message')) {
+                            chatArea.removeChild(chatArea.children[messageIndex - 1]); // Remove user's message
+                            chatArea.removeChild(messageContainer); // Remove assistant's message
                         }
+        
+                        // Modify sendMessage function to handle file attachments separately
+                        await sendMessageWithAttachments(textContent, filesUploaded, imagesUploaded);
                     }
-                    
-                    // Re-send the user's message
-                    document.getElementById('userInput').innerText = userMessage;
-                    sendMessage();
                 }
             }
+        }
+        
+        async function sendMessageWithAttachments(message, files, images) {
+            const chatArea = document.getElementById('chatArea');
+            
+            if (chatArea.querySelector('.chat-welcome')) {
+                chatArea.innerHTML = '';
+            }
+        
+            let messages = [];
+        
+            if (message) {
+                messages.push({
+                    type: "text",
+                    text: message
+                });
+                appendMessage('user', message);
+            }
+        
+            // Include uploaded files
+            files.forEach(file => {
+                messages.push({
+                    type: "file",
+                    name: file.name,
+                    content: file.content
+                });
+                const lastMessage = chatArea.lastElementChild;
+                lastMessage.querySelector('.message-content').innerHTML += `
+                    <div><strong>File:</strong> ${file.name}</div>
+                `;
+            });
+        
+            if (images.length > 0) {
+                images.forEach(image => {
+                    messages.push({
+                        type: "image_url",
+                        image_url: {
+                            url: image
+                        }
+                    });
+                    const lastMessage = chatArea.lastElementChild;
+                    lastMessage.querySelector('.message-content').innerHTML += `
+                        <div><img src="${image}" style="max-width: 15rem; border-radius: var(--radius); margin-top: 15px; cursor: pointer; float: right;"></div>
+                    `;
+                });
+            }
+            
+            document.getElementById('userInput').innerText = '';
+            document.getElementById('imagePreview').innerHTML = '';
+            document.getElementById('filePreview').innerHTML = '';
+            
+            let currentChat;
+            if (currentChatId) {
+                currentChat = await getFromStore(CHAT_STORE, currentChatId);
+            } else {
+                currentChatId = `Chat ${Date.now()}`;
+                currentChat = { id: currentChatId, name: currentChatId, messages: [], model: selectedModel };
+            }
+        
+            const chatMessages = currentChat ? currentChat.messages.slice(-chatHistoryLength) : [];
+            const apiMessages = [
+                { 'role': 'system', 'content': JSON.stringify(settings.systemPrompt.replace('{{local_date}}', new Date().toLocaleDateString())) },
+                ...chatMessages,
+                { 'role': 'user', 'content': JSON.stringify(messages) }
+            ];
+        
+            await saveChatToIndexedDB('user', JSON.stringify(messages));
+        
+            try {
+                filesUploaded = [];
+                imagesUploaded = [];
+                await streamOpenAIRequest(apiMessages, webSearchEnabled);
+        
+                // Update user credits and message cost after sending a message
+                await fetchUserInfo();
+                await updateMessageCost();
+        
+                // Update the model in IndexedDB after sending the message
+                await updateCurrentChatModel(selectedModel);
+        
+                // Update chat history sidebar without causing a flash
+                await updateChatHistorySidebar();
+            } catch (error) {
+                console.error('Error:', error);
+                filesUploaded = [];
+                imagesUploaded = [];
+                updateFilePreview();
+                document.getElementById('imagePreview').innerHTML = '';
+                document.getElementById('chatArea').innerHTML += `
+                    <div style="margin-bottom: 1rem;">
+                        <strong>Error:</strong> 
+                        <p style="background-color: hsl(var(--destructive)); color: hsl(var(--destructive-foreground)); padding: 0.5rem; border-radius: var(--radius);">${error.message}</p>
+                    </div>
+                `;
+            }
+            
+            filesUploaded = [];
+            imagesUploaded = [];
         }
 
         async function sendMessage() {
@@ -3274,7 +3607,7 @@
                         });
                         const lastMessage = chatArea.lastElementChild;
                         lastMessage.querySelector('.message-content').innerHTML += `
-                            <div><img src="${image}" style="max-width: 100%; border-radius: var(--radius);"></div>
+                            <div><img src="${image}" style="max-width: 15rem; border-radius: var(--radius); margin-top: 15px; cursor: pointer; float: right;"></div>
                         `;
                     });
                 }
@@ -3446,6 +3779,10 @@
         }
         
         async function loadChat(chatId) {
+            if (currentController) {
+                stopStreaming();
+            }
+
             currentChatId = chatId;
             const chat = await getFromStore(CHAT_STORE, chatId);
             if (chat) {
@@ -3463,7 +3800,7 @@
                             } else if (content.type === 'image_url') {
                                 const lastMessage = chatArea.lastElementChild;
                                 lastMessage.querySelector('.message-content').innerHTML += `
-                                    <div><img src="${content.image_url.url}" style="max-width: 100%; border-radius: var(--radius);"></div>
+                                    <div><img src="${content.image_url.url}" style="max-width: 15rem; border-radius: var(--radius); margin-top: 15px; cursor: pointer; float: right;"></div>
                                 `;
                             } else if (content.type === 'file') {
                                 const lastMessage = chatArea.lastElementChild;
@@ -3518,6 +3855,10 @@
         }
 
         function startNewChat() {
+            if (currentController) {
+                stopStreaming();
+            }
+            
             currentChatId = null;
             document.getElementById('chatArea').innerHTML = '';
             document.getElementById('userInput').innerText = '';
@@ -3642,7 +3983,76 @@
             input.click();
         }
 
+        document.getElementById('userInput').addEventListener('paste', handlePaste);
 
+        async function handlePaste(e) {
+            e.preventDefault();
+            const clipboardItems = e.clipboardData.items;
+            const items = Array.from(clipboardItems);
+        
+            const imagePromises = [];
+            const filePromises = [];
+            let textContent = '';
+        
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    imagePromises.push(handlePastedImage(item));
+                } else if (item.kind === 'file') {
+                    filePromises.push(handlePastedFile(item));
+                } else if (item.type === 'text/plain') {
+                    const text = await new Promise(resolve => item.getAsString(resolve));
+                    textContent += text;
+                }
+            }
+        
+            // Wait for all promises to resolve
+            await Promise.all([...imagePromises, ...filePromises]);
+        
+            // Update the user input with the text content
+            if (textContent) {
+                const userInput = document.getElementById('userInput');
+                userInput.innerText += textContent;
+            }
+        
+            // Update previews
+            updateImagePreview();
+            updateFilePreview();
+        }
+        
+        async function handlePastedImage(item) {
+            const blob = item.getAsFile();
+            const base64Image = await blobToBase64(blob);
+            imagesUploaded.push(base64Image);
+        }
+        
+        async function handlePastedFile(item) {
+            const file = item.getAsFile();
+            if (filesUploaded.length >= 4) {
+                console.warn('Maximum file limit reached. Skipping additional files.');
+                return;
+            }
+            try {
+                const content = await parseFile(file);
+                filesUploaded.push({
+                    name: file.name || 'Pasted File',
+                    content: content,
+                    type: file.type
+                });
+            } catch (error) {
+                console.error(`Error parsing file ${file.name}:`, error);
+                alert(`Error parsing file ${file.name}. Please try again.`);
+            }
+        }
+        
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+        
         function updateImagePreview() {
             const previewArea = document.getElementById('imagePreview');
             previewArea.innerHTML = '';
@@ -3755,7 +4165,7 @@
         }
         
         async function parseDocx(buffer) {
-            const result = await mammoth.extractRawText({buffer});
+            const result = await mammoth.extractRawText({arrayBuffer: buffer});
             return result.value;
         }
 
@@ -4004,6 +4414,37 @@
             }
         }
 
+        function setupImagePreviews() {
+            const chatArea = document.getElementById('chatArea');
+            chatArea.addEventListener('click', (e) => {
+                if (e.target.tagName === 'IMG') {
+                    openImagePreview(e.target.src);
+                }
+            });
+        }
+
+        function openImagePreview(imageSrc) {
+            const modal = document.getElementById('imagePreviewModal');
+            const previewImage = document.getElementById('previewImage');
+            previewImage.src = imageSrc;
+            modal.style.display = 'flex';
+        }
+
+        function closeImagePreview() {
+            const modal = document.getElementById('imagePreviewModal');
+            modal.style.display = 'none';
+        }
+
+        function saveImage() {
+            const previewImage = document.getElementById('previewImage');
+            const link = document.createElement('a');
+            link.href = previewImage.src;
+            link.download = 'downloaded_image.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
         function switchPlayground(type) {
             const items = document.querySelectorAll('.navigation-item');
             items.forEach(item => item.classList.remove('active'));
@@ -4074,6 +4515,28 @@
             fetchUserInfo();
             updateMessageCost();
             loadRandomPrompts();
+
+            setupImagePreviews();
+
+            // Set up the close button for the image preview
+            document.querySelector('.close-preview').addEventListener('click', closeImagePreview);
+
+            // Set up the save button for the image preview
+            document.getElementById('saveImageBtn').addEventListener('click', saveImage);
+
+            // Close the preview when clicking outside the image
+            document.getElementById('imagePreviewModal').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) {
+                    closeImagePreview();
+                }
+            });
+
+            // Close the preview when pressing the Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeImagePreview();
+                }
+            });
         }
     </script>
 </body>

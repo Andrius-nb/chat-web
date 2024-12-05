@@ -908,7 +908,7 @@
                                 <span id="selectedModel">Select Model</span>
                             </div>
                             <div class="model-dropdown-content" id="modelDropdownContent">
-                                <input type="text" class="model-search-input" id="modelSearchInput" placeholder="Search models...">
+                                <input type="text" class="model-search-input" id="modelSearchInput" placeholder="Search models..." autocomplete="off">
                                 <div id="modelOptions"></div>
                             </div>
                         </div>
@@ -1241,7 +1241,12 @@
         function toggleTheme() {
             const theme = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
             document.body.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
+            // save true or false to localStorage, theme is not a boolean
+            if (theme === 'dark') {
+                localStorage.setItem('darkMode', true);
+            } else {
+                localStorage.setItem('darkMode', false);
+            }
             updateThemeIcon();
         }
 
@@ -1267,7 +1272,7 @@
         }
 
         function initTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
+            const savedTheme = localStorage.getItem('darkMode') === 'true' ? 'dark' : 'light';
             document.body.setAttribute('data-theme', savedTheme);
             updateThemeIcon();
         }

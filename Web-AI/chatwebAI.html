@@ -833,7 +833,11 @@
             padding: 1rem;
             border-radius: var(--radius);
             margin: unset;
-            margin-bottom: 1rem;
+            margin-bottom: 1rem !important;
+        }
+
+        .markdown-content .language {
+            margin-bottom: 0 !important;
         }
     
         .markdown-content code {
@@ -1694,7 +1698,7 @@
             }
 
             .chat-item {
-                width: 96;
+                width: 69vw;
             }
 
             .subscription-plan {
@@ -1886,6 +1890,7 @@
             color: hsl(var(--muted-foreground));
             font-weight: bold;
             margin-top: 1rem;
+            margin-bottom: 0
         }
 
     </style>
@@ -1925,7 +1930,7 @@
                             <path d="M14.82 2.41c3.96 0 7.18 3.24 7.18 7.21 0 3.96-3.22 7.18-7.18 7.18-3.97 0-7.21-3.22-7.21-7.18 0-3.97 3.24-7.21 7.21-7.21zM2 21.6h3.5V2.41H2V21.6z"/>
                         </svg>
                     </a>
-                    <span class="version-text">v 1.0.7</span>
+                    <span class="version-text">v 1.0.8</span>
                 </div>
             </div>
         
@@ -3262,6 +3267,12 @@
                 messagesToSend = messages;
             }
         
+            // Retrieve the current chat's system prompt
+            const currentChat = await getFromStore(CHAT_STORE, currentChatId);
+            console.log(currentChat);
+            let systemPrompt = currentChat ? currentChat.systemPrompt : settings.systemPrompt;
+            systemPrompt = systemPrompt.replace(/{{user}}/g, username).replace(/{{char}}/g, botName);
+            systemPrompt = systemPrompt.replace('{{local_date}}', new Date().toLocaleDateString());
             const body = JSON.stringify({
                 model: selectedModel,
                 messages: [
@@ -4045,8 +4056,18 @@
         
                     // Update the model in IndexedDB after sending the message
                     await updateCurrentChatModel(selectedModel);
-        
-                    // Update chat history sidebar without causing a flash
+                    
+                    //try {
+                    //    currentChat.id = `Chat ${Date.now()}`;
+                    //    if (currentChat.messages.length > 0) {
+                    //        await deleteFromStore(CHAT_STORE, currentChatId);
+                    //        await putInStore(CHAT_STORE, currentChat);
+                    //    }
+                    //    currentChatId = currentChat.id;
+                    //} catch (error) {
+                    //    console.error('Error updating chat:', error);
+                    //}
+                    
                     await updateChatHistorySidebar();
                 } catch (error) {
                     console.error('Error:', error);
@@ -4121,6 +4142,13 @@
                 chatHistoryElement.appendChild(chatItem);
             });
         
+            // const loadMoreBtn = document.getElementById('loadMoreBtn');
+            // if (allChats.length > 5) {
+            //    loadMoreBtn.style.display = 'block';
+            // } else {
+            //    loadMoreBtn.style.display = 'none';
+            //}
+        
             // Reset search input and show all chats
             const searchInput = document.querySelector('.sidebar-section input[type="text"]');
             searchInput.value = '';
@@ -4187,11 +4215,14 @@
         }
         
         async function loadChat(chatId) {
+            customId = null;
+            currentChatId = chatId;
+            // reset the url to remove the custom character id
             if (currentController) {
                 stopStreaming();
             }
 
-            currentChatId = chatId;
+            window.history.replaceState({}, document.title, '/');
             const chat = await getFromStore(CHAT_STORE, chatId);
             if (chat) {
                 const chatArea = document.getElementById('chatArea');
@@ -4199,6 +4230,61 @@
 
                 // Highlight the current chat in the sidebar
                 setActiveChatItem(chatId);
+         
+                // If this is a custom character chat, load the character data
+                if (chat.customId) {
+                    console.log('Loading custom character chat:', chat.customId);
+                    showLoadingEffect();
+                    // fetch the character data from /bots
+                    const response = await fetch(`${BASE_URL}/bots`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            key: localStorage.getItem('apiKey'),
+                            action: "get",
+                            data: { "bot_id": chat.customId }
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        const bot = result.value;
+                        console.log('Loaded character:', bot);
+    
+                        document.getElementById('chatArea').innerHTML = '';
+                        
+                        // Set the model
+                        selectedModel = bot.base_model;
+                        customId = chat.customId;
+                        botName = bot.bot_name;
+                        botImage = bot.img_url;
+
+                        await updateMessageCost();  
+
+                        // Update the chat icon
+                        document.getElementById("modelSelectorBtn").innerHTML = `
+                            <span class="model-icon">${botImage ? `<img src="${botImage}" style="width: 24px; height: 24px; border-radius: 50%;">` : getDefaultModelIcon()}</span>
+                            <span id="selectedModel">${botName}</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-down"><polyline points="6 9 12 15 18 9"></
+                        `;
+                        
+                    } else {
+                        console.error('Error loading character:', result.error);
+                        document.getElementById('chatArea').innerHTML = `
+                            <div style="margin-bottom: 1rem; width: fit-content;">
+                                <strong>Error:</strong> 
+                                <p style="background-color: hsl(var(--destructive)); color: hsl(var(--destructive-foreground)); padding: 0.5rem; border-radius: var(--radius);">${result.error}</p>
+                            </div>
+                        `;
+                    }
+
+                    hideLoadingEffect();
+                        
+                }
+
                 settings.systemPrompt = chat.systemPrompt || "You're helpful assistant that can help me with my questions. Today is {{local_date}}.";
                 if (chat.customId && botName) {
                     settings.systemPrompt.replace(/{{user}}/g, username).replace(/{{char}}/g, botName);
@@ -4975,6 +5061,13 @@
             updateMessageCost();
             loadRandomPrompts();
             setupImagePreviews();
+
+            const characterId = getUrlParameter('character');
+            if (characterId) {
+                showLoadingEffect();
+            }
+
+            await fetchUserInfo();
 
             // Set up the close button for the image preview
             document.querySelector('.close-preview').addEventListener('click', closeImagePreview);
